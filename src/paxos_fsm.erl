@@ -59,6 +59,7 @@ version_info()-> {?MODULE, 1}.
 start(S, InitN, V, Others, ReturnPids) ->
 %%    lists:map( fun(Other)-> net_adm:ping(Other) end, Others ),
     %% setting data;
+    io:format("Line: ~p~n", [?LINE]),
     All = length(Others)+1,    Quorum = All / 2 ,
     InitStateData = #state{ subject=S, n=InitN, value=V,
                             all=All, quorum=Quorum, others=Others, init_n=InitN,
@@ -73,12 +74,14 @@ start(S, InitN, V, Others, ReturnPids) ->
 %% @doc    Users can stop the FSM after or before PAXOS have make result.
 %% @spec   stop( subject_identifier() ) ->  ok
 stop(S) ->  %    io:format("~p ~p.~n",  [?MODULE, stopped]),
+io:format("Line: ~p~n", [?LINE]),
     gen_fsm:send_all_state_event( generate_global_address( node(),S ), stop).
 
 %% @doc    Users can get result as long as FSM remains.
 %% @spec   get_result( subject_identifier() ) -> Reply
 %%    Reply = {decided, V} | {OtherStateName, V}
 get_result(S)->
+io:format("Line: ~p~n", [?LINE]),
     gen_fsm:sync_send_all_state_event( generate_global_address( node(),S ), result).
 
 
@@ -87,6 +90,7 @@ get_result(S)->
 %% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ %%
 
 init(InitStateData)->
+io:format("Line: ~p~n", [?LINE]),
     %% message;
     io:format("~p ~p: ~p~n", [?MODULE, started, InitStateData]),
     %% starting paxos_fsm...
@@ -98,11 +102,13 @@ init(InitStateData)->
     }.
 
 broadcast(Others, S, Message)->
+io:format("Line: ~p~n", [?LINE]),
     PaxosOthers = [ generate_global_address( P, S ) || P <-  Others ],
     lists:map( fun(Other)-> gen_fsm:send_event( Other, Message ) end , %Timeout * 1) end,
                PaxosOthers ).
 
 send(Node, S, Message)->
+io:format("Line: ~p~n", [?LINE]),
 %    io:format("sending: ~p to ~p~n", [Message, {global, {?MODULE, Node, S}}] ),
     gen_fsm:send_event( generate_global_address( Node, S ), Message ).
 
@@ -131,6 +137,7 @@ generate_global_address( Node, Subject )->  {global, {?MODULE, Node, Subject}}.
 %% =========================================
 %%  - nil ( master lease time out )
 nil( {prepare,  {S, N, _V, From}},  StateData) when N > StateData#state.n ->
+io:format("Line: ~p~n", [?LINE]),
 %    {{S, Nc, _Vc}, Nums} ) when N > Nc ->
 %    gen_fsm:sync_send_event(From, {prepare_result, {0, nil}}),
     send(From, S, {prepare_result, {S, 0, nil, node()}}),
@@ -138,6 +145,7 @@ nil( {prepare,  {S, N, _V, From}},  StateData) when N > StateData#state.n ->
     {next_state, acceptor, NewStateData, %{{S, N, V}, Nums},
      ?DEFAULT_TIMEOUT};
 nil( {prepare,  {S, N, _V, From}}, StateData) when N < StateData#state.n ->  %{{S, Nc, Vc}, Nums} ) when N < Nc ->
+io:format("Line: ~p~n", [?LINE]),
 %    gen_fsm:sync_send_event(From, {prepare_result, {0, nil}}),
     send(From, S, {prepare_result, {S, StateData#state.n, StateData#state.value, node()}}),
     {next_state, nil, StateData, ?DEFAULT_TIMEOUT};
@@ -146,6 +154,7 @@ nil( {prepare,  {S, N, _V, From}}, StateData) when N < StateData#state.n ->  %{{
 %% nil( {decide,  {S, N, V, From}},  {{S, Nc, Vc}, Nums} ) when N < Nc -> % always ignore
 %%     {next_state, nil, {{S, Nc, Vc}, Nums}, ?DEFAULT_TIMEOUT};
 nil( {decide,  {S, N, V, _From}}, StateData ) -> % when N == Nc
+io:format("Line: ~p~n", [?LINE]),
 %    {_OldNums , Members} = StateData,
 %    {next_state, decided, {{S, N, V}, Members}, ?DEFAULT_TIMEOUT};
     S=StateData#state.subject,
@@ -155,6 +164,7 @@ nil( {decide,  {S, N, V, _From}}, StateData ) -> % when N == Nc
 %nil( timeout, {{S, N, V}, {All, Quorum, _Current, Others, InitN}} )->
 nil( timeout, StateData )-> %{{S, N, V}, {All, Quorum, _Current, Others, InitN}} )->
     % send prepare ! to all members.
+    io:format("Line: ~p~n", [?LINE]),
     NewN = get_next_n( StateData#state.n, StateData#state.all ) + StateData#state.init_n,
     io:format( "starting paxos ... ~p. ~n", [[NewN, StateData]]),
 %    Result = broadcast( Others, S, {prepare, {S,NewN,V, node()}} ),
@@ -166,6 +176,7 @@ nil( timeout, StateData )-> %{{S, N, V}, {All, Quorum, _Current, Others, InitN}}
     {next_state, preparing, StateData#state{n=NewN, current=1}, ?DEFAULT_TIMEOUT};
 
 nil(UnknownEvent, StateData)-> % ignore
+io:format("Line: ~p~n", [?LINE]),
     io:format( "unknown event: ~p,  ~p : all ignored.~n", [UnknownEvent, StateData] ),
     {next_state, nil, StateData, ?DEFAULT_TIMEOUT}.
 
@@ -175,21 +186,25 @@ nil(UnknownEvent, StateData)-> % ignore
 %preparing( {prepare,  {S, N, _V, From}},  {{S, Nc, Vc}, Nums} ) when N < Nc ->
 preparing( {prepare,  {S, N, _V, From}},  StateData ) when N < StateData#state.n ->
 %    gen_fsm:sync_send_event( From, {prepare, {S, Nc, Vc} } ),
+io:format("Line: ~p~n", [?LINE]),
     send( From, S,  {prepare, {S, StateData#state.n, StateData#state.value, node()} } ),
     {next_state, preparing, StateData, ?DEFAULT_TIMEOUT};
 %% preparing( {prepare,  {S, N, V, From}},  {{S, N, V}, Nums} ) -> % when N == Nc
 %%     {next_state, hoge, {{S, N, V}, Nums}, ?DEFAULT_TIMEOUT};
 preparing( {prepare,  {S, N, V, From}},  StateData ) when N > StateData#state.n ->
+io:format("Line: ~p~n", [?LINE]),
     send( From, S, {prepare_result, {S, StateData#state.n, StateData#state.value, node()}}),
     io:format("sending prepare_result and going acceptor...~n", []),
     {next_state, acceptor, StateData#state{subject=S, n=N, value=V}, ?DEFAULT_TIMEOUT};
 
 %preparing( {prepare_result,  {S, N, V, From}},  {{S, Nc, _Vc}, Nums} ) when N > Nc ->
 preparing( {prepare_result,  {S, N, V, From}},  StateData ) when N > StateData#state.n ->
+io:format("Line: ~p~n", [?LINE]),
     send( From, S, {prepare_result, {S, N, V, node()}} ),
     {next_state, acceptor, StateData#state{subject=S, n=N, value=V}, ?DEFAULT_TIMEOUT};
 
 preparing( {prepare_result,  {S, _N, _V, _From}}, StateData ) when StateData#state.current > StateData#state.quorum ->
+io:format("Line: ~p~n", [?LINE]),
 %          {{S, Nc, Vc}, {All, Quorum, Current, Others, InitN}} ) when Current > Quorum->
     broadcast( StateData#state.others, S, {propose, {S,StateData#state.n,StateData#state.value, node()}} ),
 %    {next_state, proposing, {{S, Nc, Vc}, {All, Quorum, 1, Others, InitN}}, ?DEFAULT_TIMEOUT};
@@ -199,19 +214,23 @@ preparing( {prepare_result,  {S, _N, _V, _From}}, StateData ) when StateData#sta
 preparing( {prepare_result,  {S, N, V, _From}}, StateData )
   when S==StateData#state.subject , N==StateData#state.n , V==StateData#state.value ->
     Current = StateData#state.current,
+    io:format("Line: ~p~n", [?LINE]),
     {next_state, proposing, StateData#state{current=Current+1}, ?DEFAULT_TIMEOUT};
 
 %preparing( {prepare_result,  {S, N, _V, _From}}, {{S, Nc, Vc}, {All, Quorum, Current, Others, InitN}} ) when N < Nc->
 preparing( {prepare_result,  {S, N, _V, _From}}, StateData ) when N < StateData#state.n ->
  %{{S, Nc, Vc}, {All, Quorum, Current, Others, InitN}} ) when N < Nc->
  %   io:format("recvd: ~p; (Current, Quorum)=(~p,~p)~n", [{{S,N,_V,_From}, {S, Nc, Vc }}, Current, Quorum]),
+ io:format("Line: ~p~n", [?LINE]),
     case (StateData#state.current + 1 > StateData#state.quorum) of
         true ->
+        io:format("Line: ~p~n", [?LINE]),
             io:format("got quorum at prepare!~n", []),
             broadcast( StateData#state.others, S, {propose, {S, StateData#state.n, StateData#state.value, node()}} ),
 %           io:format("proposing ~p...~n", [{propose, {S,Nc,Vc,node()}}]),
             {next_state, proposing, StateData#state{current=1}, ?DEFAULT_TIMEOUT};
         false ->
+        io:format("Line: ~p~n", [?LINE]),
             Current = StateData#state.current,
             {next_state, preparing, StateData#state{current=Current+1}, ?DEFAULT_TIMEOUT}
                                                 %{{S, Nc, Vc}, {All, Quorum, Current+1, Others, InitN}},
@@ -223,6 +242,7 @@ preparing( {prepare_result,  {S, N, _V, _From}}, StateData ) when N < StateData#
 %%     {next_state, hoge, {{S, N, V}, Nums}, ?DEFAULT_TIMEOUT};
 preparing( {propose,  {S, N, V, From}},  StateData ) when N > StateData#state.n ->
     send( From, S, {propose_result, {S, N, V, node()}} ),
+    io:format("Line: ~p~n", [?LINE]),
     {next_state, learner, StateData#state{n=N, value=V}, ?DEFAULT_TIMEOUT};
 
 %% preparing( {propose_result,  {S, N, V, From}},  {{S, Nc, Vc}, Nums} ) when N < Nc ->
@@ -231,13 +251,16 @@ preparing( {propose,  {S, N, V, From}},  StateData ) when N > StateData#state.n 
 %%     {next_state, hoge, {{S, N, V}, Nums}, ?DEFAULT_TIMEOUT};
 preparing( {propose_result,  {S, N, V, From}}, StateData) when N > StateData#state.n ->
     send( From, S, {propose_result, {S, N, V, node()}} ),
+    io:format("Line: ~p~n", [?LINE]),
     {next_state, learner, StateData#state{n=N, value=V}, ?DEFAULT_TIMEOUT};
 
 preparing( {decide,  {_S, N, V, _From}}, StateData)-> %{{S, _Nc, _Vc}, Nums} ) ->
+io:format("Line: ~p~n", [?LINE]),
     decided_callback( StateData#state{n=N, value=V} );
 %    {next_state, decided, StateData#state{n=N, value=V}, ?DEFAULT_TIMEOUT};
 
 preparing( timeout, StateData)-> %{{S, N, V},  {All, Quorum, _Current, Others, InitN} } )->
+io:format("Line: ~p~n", [?LINE]),
     {next_state, nil,  StateData#state{current=0}, ?DEFAULT_TIMEOUT}.
      %{{S, N, V}, {All, Quorum, 0, Others, InitN}}, ?DEFAULT_TIMEOUT}.
 
@@ -248,6 +271,7 @@ preparing( timeout, StateData)-> %{{S, N, V},  {All, Quorum, _Current, Others, I
 %% proposing( {prepare,  {S, N, V, From}},  {{S, N, V}, Nums} ) -> % when N == Nc
 %%     {next_state, hoge, {{S, N, V}, Nums}, ?DEFAULT_TIMEOUT};
 proposing( {prepare,  {S, N, V, From}},  StateData) when N > StateData#state.n ->  %{{S, Nc, Vc}, Nums} ) when N > Nc ->
+io:format("Line: ~p~n", [?LINE]),
     send( From, S,  {prepare_result, {S, StateData#state.n, StateData#state.value, node() }}),
     {next_state, acceptor, StateData#state{n=N, value=V}, ?DEFAULT_TIMEOUT};
 
@@ -256,6 +280,7 @@ proposing( {prepare,  {S, N, V, From}},  StateData) when N > StateData#state.n -
 %% proposing( {prepare_result,  {S, N, V, From}},  {{S, N, V}, Nums} ) -> % when N == Nc
 %%     {next_state, hoge, {{S, N, V}, Nums}, ?DEFAULT_TIMEOUT};
 proposing( {prepare_result,  {S, N, V, From}},  StateData) when N > StateData#state.n -> %{{S, Nc, Vc}, Nums} ) when N > Nc ->
+io:format("Line: ~p~n", [?LINE]),
     send( From, S, {prepare_result, {S, StateData#state.n, StateData#state.value, node()}}),
     {next_state, acceptor, StateData#state{n=N, value=V}, ?DEFAULT_TIMEOUT};
 
@@ -265,6 +290,7 @@ proposing( {prepare_result,  {S, N, V, From}},  StateData) when N > StateData#st
 %%     {next_state, hoge, {{S, N, V}, Nums}, ?DEFAULT_TIMEOUT};
 proposing( {propose,  {S, N, V, From}},  StateData) when N > StateData#state.n -> %{{S, Nc, Vc}, Nums} ) when N > Nc ->
     send( From, S, {propose_result, {S, StateData#state.n, StateData#state.value, node()}}),
+    io:format("Line: ~p~n", [?LINE]),
     {next_state, learner, StateData#state{n=N, value=V}, ?DEFAULT_TIMEOUT};
 
 %% proposing( {propose_result,  {S, N, V, From}},  {{S, Nc, Vc}, Nums} ) when N < Nc ->
@@ -276,6 +302,7 @@ proposing( {propose_result,  {S, N, V, _From}}, StateData)
   when N==StateData#state.n, V==StateData#state.value, StateData#state.quorum > StateData#state.current+1 ->
     S=StateData#state.subject,
     Current = StateData#state.current,
+    io:format("Line: ~p~n", [?LINE]),
     {next_state, proposing, StateData#state{current=Current+1}, ?DEFAULT_TIMEOUT };
 
 %% Got quorum!!!
@@ -283,6 +310,7 @@ proposing( {propose_result,  {S, N, V, _From}}, StateData)
 %%         {{S, N, V}, {All, Quorum, Current, Others, InitN}} )-> % when N == Nc
 proposing( {propose_result,  {S, N, V, _From}}, StateData) when N==StateData#state.n, V==StateData#state.value->
     io:format("got quorum at proposing!!~n", []),
+    io:format("Line: ~p~n", [?LINE]),
     broadcast( StateData#state.others, S, {decide, {S, N, V, node()}} ),
     Current=StateData#state.current,
     decided_callback( StateData#state{current=Current+1} );
@@ -290,6 +318,7 @@ proposing( {propose_result,  {S, N, V, _From}}, StateData) when N==StateData#sta
 
 proposing( {propose_result,  {S, N, V, From}}, StateData) when N > StateData#state.n -> % {{S, Nc, _Vc}, Nums} ) when N > Nc ->
     send( From,  S, {propose_result, {S, N, V, node()}}),
+    io:format("Line: ~p~n", [?LINE]),
     {next_state, learner, StateData#state{n=N, value=V}, ?DEFAULT_TIMEOUT};
 
 %% proposing( {decide,  {S, N, V, From}},  {{S, Nc, Vc}, Nums} ) when N < Nc -> % always ignore
@@ -299,14 +328,17 @@ proposing( {propose_result,  {S, N, V, From}}, StateData) when N > StateData#sta
 
 proposing( {decide,  {S, N, V, _From}}, StateData) when N >= StateData#state.n-> %{{S, Nc, _Vc}, Nums} ) when N >= Nc ->
     S=StateData#state.subject,
+    io:format("Line: ~p~n", [?LINE]),
     decided_callback( StateData#state{n=N, value=V} );
 %    {next_state, decided, StateData#state{n=N, value=V}, ?DEFAULT_TIMEOUT};
 
 proposing( timeout, StateData)-> %{{S, N, V}, {All, Quorum, _Current, Others, InitN}} )->
     io:format("proposing timeout: ~p  , StateData=~p~n" , [propose, StateData]),
+    io:format("Line: ~p~n", [?LINE]),
     {next_state, nil, StateData#state{current=1}, ?DEFAULT_TIMEOUT};
 
 proposing( _Event, StateData) ->
+io:format("Line: ~p~n", [?LINE]),
     {next_state, proposing, StateData}.
 
 
@@ -314,12 +346,14 @@ proposing( _Event, StateData) ->
 %%  - acceptor
 acceptor( {prepare,  {S, N, _V, From}},  StateData) when N < StateData#state.n-> %{{S, Nc, Vc}, Nums} ) when N < Nc ->
     send( From, S, { prepare_result, {S, StateData#state.n, StateData#state.value, node()}} ),
+    io:format("Line: ~p~n", [?LINE]),
     {next_state, acceptor, StateData, ?DEFAULT_TIMEOUT};
 
 %% acceptor( {prepare,  {S, N, V, From}},  {{S, N, V}, Nums} ) -> % when N == Nc
 %%     {next_state, acceptor, {{S, N, V}, Nums}, ?DEFAULT_TIMEOUT};
 acceptor( {prepare,  {S, N, V, From}},  StateData ) when N >= StateData#state.n ->
     send( From, S, { prepare_result, {S, StateData#state.n, StateData#state.value, node()}} ),
+    io:format("Line: ~p~n", [?LINE]),
     {next_state, acceptor, StateData#state{n=N, value=V}, ?DEFAULT_TIMEOUT};
 
 %% acceptor( {prepare_result,  {S, N, V, From}},  {{S, Nc, Vc}, Nums} ) when N < Nc ->
@@ -331,13 +365,16 @@ acceptor( {prepare,  {S, N, V, From}},  StateData ) when N >= StateData#state.n 
 
 acceptor( {propose,  {S, N, _V, _From}},  StateData) when N < StateData#state.n -> %{{S, Nc, Vc}, Nums} ) when N < Nc ->
     io:format("bad state: ~p (N,Nc)=(~p)~n" , [{propose},{ N, StateData#state.n}]),
+    io:format("Line: ~p~n", [?LINE]),
     S=StateData#state.subject,
     {next_state, propose, StateData, ?DEFAULT_TIMEOUT};
 acceptor( {propose,  {S, N, V, From}},  StateData ) when N > StateData#state.n ->
     send( From, S, {propose_result , {S, StateData#state.n, StateData#state.value, node() }} ),
+    io:format("Line: ~p~n", [?LINE]),
     {next_state, learner, StateData#state{n=N, value=V}, ?DEFAULT_TIMEOUT};
 acceptor( {propose,  {S, N, V, From}},  StateData)-> % when N == Nc
     {N,V}={StateData#state.n, StateData#state.value},
+    io:format("Line: ~p~n", [?LINE]),
     send( From, S, {propose_result , {S, StateData#state.n, StateData#state.value,  node() }} ),
     {next_state, learner, StateData, ?DEFAULT_TIMEOUT};
 
@@ -354,14 +391,17 @@ acceptor( {propose,  {S, N, V, From}},  StateData)-> % when N == Nc
 %%     {next_state, decided, {{S, N, V}, Nums}, ?DEFAULT_TIMEOUT};
 acceptor( {decide,  {S, N, V, _From}}, StateData) when N >= StateData#state.n -> %{{S, Nc, _Vc}, Nums} ) when N >= Nc ->
     S=StateData#state.subject,
+    io:format("Line: ~p~n", [?LINE]),
     decided_callback( StateData#state{n=N, value=V} );
 %    {Next_state, decided, StateData#state{n=N, value=V}, ?DEFAULT_TIMEOUT};
 
 acceptor( timeout, StateData)-> %{{S, N, V}, {All, Quorum, _Current, Others, InitN} })->
+io:format("Line: ~p~n", [?LINE]),
     io:format("acceptor timeout: ~p (N,V)=(~p)~n" , [{propose},{StateData#state.n, StateData#state.value}]),
     {next_state, nil, StateData#state{current=1}, ?DEFAULT_TIMEOUT};
 
 acceptor( _Event, StateData) ->
+io:format("Line: ~p~n", [?LINE]),
     io:format("acceptor unknown event: ~p ,~p~n" , [_Event , StateData]),
     {next_state, acceptor, StateData}.
 
@@ -373,10 +413,12 @@ acceptor( _Event, StateData) ->
 %%     {next_state, hoge, {{S, N, V}, Nums}, ?DEFAULT_TIMEOUT};
 learner( {prepare,  {S, N, V, From}}, StateData) when N > StateData#state.n -> % {{S, Nc, _Vc}, Nums} ) when N > Nc ->
     send( From, S, {prepare_result, {S, N, V, node()}} ),
+    io:format("Line: ~p~n", [?LINE]),
     {next_state, acceptor, StateData#state{n=N, value=V}, ?DEFAULT_TIMEOUT};
 
 learner( {prepare_result,  {S, _N, _V, _From}}, StateData )-> % when N < Nc ->
     S=StateData#state.subject,
+    io:format("Line: ~p~n", [?LINE]),
     {next_state, learner, StateData, ?DEFAULT_TIMEOUT };
 %    {next_state, hoge, {{S, Nc, Vc}, Nums}, ?DEFAULT_TIMEOUT};
 %% learner( {prepare_result,  {S, N, V, From}},  {{S, N, V}, Nums} ) -> % when N == Nc
@@ -386,11 +428,13 @@ learner( {prepare_result,  {S, _N, _V, _From}}, StateData )-> % when N < Nc ->
 
 learner( {propose,  {S, N, _V, _From}}, StateData) when N < StateData#state.n -> %{{S, Nc, Vc}, Nums} ) when N < Nc ->
     S=StateData#state.subject,
+    io:format("Line: ~p~n", [?LINE]),
     {next_state, learner, StateData, ?DEFAULT_TIMEOUT};
 %% learner( {propose,  {S, N, V, _From}}, {{S, N, V}, Nums} ) -> % when N == Nc
 %%     {next_state, hoge, {{S, N, V}, Nums}, ?DEFAULT_TIMEOUT};
 learner( {propose,  {S, N, V, From}},  StateData) when N > StateData#state.n -> %{{S, Nc, _Vc}, Nums} ) when N > Nc ->
     send( From, S, {propose_result, {S, N, V, node()}}),
+    io:format("Line: ~p~n", [?LINE]),
     {next_state, learner, StateData#state{n=N, value=V}, ?DEFAULT_TIMEOUT};
 
 %% learner( {propose_result,  {S, N, V, From}},  {{S, Nc, Vc}, Nums} ) when N < Nc ->
@@ -406,13 +450,16 @@ learner( {propose,  {S, N, V, From}},  StateData) when N > StateData#state.n -> 
 %%     {next_state, decided, {{S, N, V}, Nums}, ?DEFAULT_TIMEOUT};
 learner( {decide,  {S, N, V, _From}}, StateData) when N >= StateData#state.n -> %{{S, Nc, _Vc}, Nums} ) when N >= Nc ->
     S=StateData#state.subject,
+    io:format("Line: ~p~n", [?LINE]),
     decided_callback( StateData#state{n=N, value=V} );
 %    {next_state, decided, StateData#state{n=N, value=V}, ?DEFAULT_TIMEOUT};
 
 learner( timeout, StateData)-> %{{S, N, V}, {All, Quorum, _Current, Others, InitN}} )->
+io:format("Line: ~p~n", [?LINE]),
     {next_state, nil, StateData#state{current=0}, ?DEFAULT_TIMEOUT};
 
 learner( _Event, StateData )->
+io:format("Line: ~p~n", [?LINE]),
     {next_state, learner, StateData }.
 
 %% =========================================
@@ -434,21 +481,25 @@ learner( _Event, StateData )->
 %%     {next_state, decided, {{S, N, V}, Nums}, ?DEFAULT_TIMEOUT};
 
 decided( {_Message, {S,_N,_V, From}}, StateData)->
+io:format("Line: ~p~n", [?LINE]),
     send( From, S, {decide, {S,StateData#state.n, StateData#state.value,node()}} ),
     {next_state, decided, StateData, ?DEFAULT_TIMEOUT };
 
 decided( timeout,  StateData )->
+io:format("Line: ~p~n", [?LINE]),
     io:format( "paxos mediation done. decided: ~p - (N=~p)~n", [StateData#state.value, StateData#state.n] ),
 %    {next_state, decided, StateData}. %{{S, N, V}, Nums}}.
     {stop, normal, StateData }.
 
 %% @doc must be called back whenever the subject got consensus!
 decided_callback(StateData)->
+io:format("Line: ~p~n", [?LINE]),
     callback(StateData#state.subject, StateData#state.value, StateData#state.return_pids ),
     {next_state, decided, StateData, ?DEFAULT_TIMEOUT}.
 
 %% @doc send back message to originator to share the consensus value.
 callback(S, V, ReturnPids)->
+io:format("Line: ~p~n", [?LINE]),
     lists:map( fun(ReturnPid)-> ReturnPid ! {self(), result, {S, V}} end, ReturnPids ).
 
 code_change(_,_,_,_)->
@@ -461,9 +512,11 @@ handle_info(_,_,_)->
     ok.
 
 handle_sync_event(result, _From, StateName, StateData)->
+io:format("Line: ~p~n", [?LINE]),
     {reply, {StateName, StateName#state.value}  , StateName, StateData};
 
 handle_sync_event(stop, From, StateName, StateData)->
+io:format("Line: ~p~n", [?LINE]),
     {stop, From, StateName, StateData}.
 
 terminate(Reason, StateName, StateData) ->
