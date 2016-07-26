@@ -95,12 +95,10 @@ io:format("Line: ~p~n", [?LINE]),
     io:format("~p ~p: ~p~n", [?MODULE, started, InitStateData]),
     %% starting paxos_fsm...
     process_flag(trap_exit, true),
-    Result = broadcast( InitStateData#state.others, InitStateData#state.subject, {prepare, {InitStateData#state.subject, InitStateData#state.n, InitStateData#state.value, node()}} ),
-    io:format( "broadcast: ~p. ~n", [Result]),
     {ok,
      nil,  %% initial statename
      InitStateData,     %%{{S, InitN, V},{All, Quorum, 0, Others, InitN}, Misc }, %% initial state data
-     ?DEFAULT_TIMEOUT %% initial state timeout
+     50 %% initial state timeout
     }.
 
 broadcast(Others, S, Message)->
