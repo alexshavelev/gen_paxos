@@ -98,7 +98,7 @@ io:format("Line: ~p~n", [?LINE]),
     {ok,
      nil,  %% initial statename
      InitStateData,     %%{{S, InitN, V},{All, Quorum, 0, Others, InitN}, Misc }, %% initial state data
-     1000 %% initial state timeout
+     500 %% initial state timeout
     }.
 
 broadcast(Others, S, Message)->
