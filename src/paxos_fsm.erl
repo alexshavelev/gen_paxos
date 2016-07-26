@@ -24,7 +24,7 @@
 -export([nil/2, preparing/2, proposing/2, acceptor/2,
          learner/2, decided/2]).
 
--define( DEFAULT_TIMEOUT, 150 ).
+-define( DEFAULT_TIMEOUT, 100 ).
 
 %% @doc state data for all machines,
 %%
