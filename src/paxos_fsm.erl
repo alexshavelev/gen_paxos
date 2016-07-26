@@ -24,7 +24,7 @@
 -export([nil/2, preparing/2, proposing/2, acceptor/2,
          learner/2, decided/2]).
 
--define( DEFAULT_TIMEOUT, 3000 ).
+-define( DEFAULT_TIMEOUT, 150 ).
 
 %% @doc state data for all machines,
 %%
@@ -98,7 +98,7 @@ io:format("Line: ~p~n", [?LINE]),
     {ok,
      nil,  %% initial statename
      InitStateData,     %%{{S, InitN, V},{All, Quorum, 0, Others, InitN}, Misc }, %% initial state data
-     150 %% initial state timeout
+     ?DEFAULT_TIMEOUT %% initial state timeout
     }.
 
 broadcast(Others, S, Message)->
